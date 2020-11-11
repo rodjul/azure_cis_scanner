@@ -37,7 +37,7 @@ def get_data():
             NETWORK_FLOWS = False
 
 def get_resource_providers(resource_providers_path):
-    resource_providers = json.loads(utils.call("az provider list"))
+    resource_providers = json.loads(utils.call("az provider list --subscription {subscription_id}".format( subscription_id=subscription_id)))
     with open(resource_providers_path, 'w') as f:
         json.dump(resource_providers, f, indent=4, sort_keys=True)
     return resource_providers
@@ -51,7 +51,7 @@ def get_network_security_groups(network_security_groups_path):
     """
     @network_path: string - path to output json file
     """
-    network_security_groups = json.loads(utils.call("az network nsg list"))
+    network_security_groups = json.loads(utils.call("az network nsg list --subscription {subscription_id}".format( subscription_id=subscription_id)))
     with open(network_security_groups_path, 'w') as f:
         json.dump(network_security_groups, f, indent=4, sort_keys=True)
     return network_security_groups
@@ -66,7 +66,7 @@ def get_network_watcher(network_watcher_path):
     """
     @network_watcher_path: string - path to output json file
     """
-    network_watcher = json.loads(utils.call("az network watcher list"))
+    network_watcher = json.loads(utils.call("az network watcher list --subscription {subscription_id}".format( subscription_id=subscription_id)))
     with open(network_watcher_path, 'w') as f:
         json.dump(network_watcher, f, indent=4, sort_keys=True)
     return network_watcher
@@ -97,8 +97,8 @@ def get_network_flows(network_flows_path, network_security_groups, network_watch
         if rg_has_watcher:
             try:
                 print("getting flow for nsg {}".format(nsg_name))
-                network_flow = utils.call("az network watcher flow-log show --resource-group {resource_group} --nsg {nsg_id}".format(
-                    resource_group=resource_group, nsg_id=nsg_id))
+                network_flow = utils.call("az network watcher flow-log show --resource-group {resource_group} --nsg {nsg_id} --subscription {subscription_id}".format(
+                    resource_group=resource_group, nsg_id=nsg_id, subscription_id=subscription_id))
                 network_flow = json.loads(network_flow)
                 network_flows.append({"resource_group": resource_group, "nsg_name": nsg_name, "network_flow": network_flow})
             except Exception as e:

@@ -61,13 +61,13 @@ def get_virtual_machines(virtual_machines_path):
     @virtual_machines_path: string - path to output json file
     @returns: list of virtual_machines dict
     """
-    virtual_machines = json.loads(utils.call("az vm list"))
+    virtual_machines = json.loads(utils.call("az vm list --subscription {subscription_id}".format( subscription_id=subscription_id)))
     for vm in virtual_machines:
         name = vm['name']
         resource_group = vm['resourceGroup']
         encrypted = utils.call("""az vm encryption show --name {name} 
             --resource-group {resource_group} 
-            --query dataDisk""".format(name=name, resource_group=resource_group))
+            --query dataDisk --subscription {subscription_id}""".format(name=name, resource_group=resource_group, subscription_id=subscription_id))
         if encrypted in ["", "Azure Disk Encryption is not enabled"]:
             vm['storageProfile']['dataDisksEncrypted'] = False
         else:
@@ -81,8 +81,8 @@ def get_virtual_machines(virtual_machines_path):
                     try:
                         ifconfig = json.loads(utils.call("""az vm nic show -g {resource_group} 
                                     --vm-name {vm_name} 
-                                    --nic {nic_name}""".format(resource_group=resource_group,                                               vm_name=name,
-                                                              nic_name=nic_name)))
+                                    --nic {nic_name} --subscription {subscription_id}""".format(resource_group=resource_group,
+                                    vm_name=name,nic_name=nic_name, subscription_id=subscription_id)))
                         iface.update(ifconfig)
                     except Exception as e:
                         print("az vm nic show failed")
@@ -240,8 +240,8 @@ def only_approved_extensions_are_installed_7_4(virtual_machines):
     for vm in virtual_machines:
         name = vm['name']
         resource_group = vm['resourceGroup']
-        extensions = json.loads(utils.call("az vm extension list --vm-name {name} --resource-group {resource_group}".format(name=name,
-            resource_group=resource_group)))
+        extensions = json.loads(utils.call("az vm extension list --vm-name {name} --resource-group {resource_group} --subscription {subscription_id}".format(name=name,
+            resource_group=resource_group,subscription_id=subscription_id)))
         if vm.get("resources", []):
             for resource in vm.get("resources", []):
                 extension_name = resource["id"].split('/')[-1]
@@ -267,8 +267,8 @@ def endpoint_protection_for_all_virtual_machines_is_installed_7_6(virtual_machin
     for vm in virtual_machines:
         name = vm['name']
         resource_group = vm['resourceGroup']
-        extensions = json.loads(utils.call("az vm extension list --vm-name {name} --resource-group {resource_group}".format(name=name,
-            resource_group=resource_group)))
+        extensions = json.loads(utils.call("az vm extension list --vm-name {name} --resource-group {resource_group} --subscription {subscription_id}".format(name=name,
+            resource_group=resource_group, subscription_id=subscription_id)))
         has_protection = False
         for extension in extensions:
             if set([extension['virtualMachineExtensionType']]).intersection(accepted_protections):

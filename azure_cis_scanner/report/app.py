@@ -57,14 +57,17 @@ def index(active_subscription_dir, methods=['POST','GET']):
     selected_active_subscription_dir = request.args.get('selected', session.get('ACTIVE_SUBSCRIPTION_DIR', active_subscription_dir))
     session['active_subscription_dir'] = selected_active_subscription_dir
     state = {'selected', selected_active_subscription_dir}
-    print('selected_active_subscription_dir', selected_active_subscription_dir)
+    print('selected_active_subscription_dir:2 -', selected_active_subscription_dir)
     if selected_active_subscription_dir != active_subscription_dir:
         print('redirecting', selected_active_subscription_dir)
         return redirect('/'+selected_active_subscription_dir)
     else:
         accounts = utils.get_accounts()
-        subscription_dirs = [(subscription_dir_from_account(account), subscription_dir_from_account(account)) for account in accounts]
-        print('subscription_dirs', subscription_dirs)
+        subscription_dirs = []
+        if accounts:
+            subscription_dirs = [(subscription_dir_from_account(account), subscription_dir_from_account(account)) for account in accounts]
+        else:
+            subscription_dirs = utils.list_scans_folders_reports(app.config['SCANS_DIR'])
         return render_template('index.html', 
             active_subscription_dir=active_subscription_dir, 
             state=state,
@@ -73,7 +76,10 @@ def index(active_subscription_dir, methods=['POST','GET']):
 @app.route('/services/<service>')
 def service(service):
     findings_table = [(x['subsection_number'], x['subsection_name'], get_finding_name(x['finding_name'], x['subsection_name'])) for x in cis_structure['TOC'][service]]
+    # print("findings_table: ",findings_table)
+    # print("TESTEEEE: ",app.config['SCANS_DATA_DIR'])
     stats = get_latest_stats(app.config['SCANS_DATA_DIR'])
+    print("stats: ",stats)
     #pprint.pprint("service:stats: {}".format(stats))
     return render_template('service.html', service=service, title=title_except(service), findings_table=findings_table, stats=stats)
 
@@ -121,7 +127,7 @@ def set_subscription_dir(subscription_dir):
 
 
 def subscription_dir_from_account(account):
-    return account['name'].split(' ')[0] + '-' + account['id'].split('-')[0]
+    return account['name'].replace(" ","_") + '-' + account['id'].split('-')[0]
 
 # Todo: use wrappers to generate the nav bars.  Too tricky for now.  Generated with print statements.
 # def build_navbar(cis_structure):
@@ -247,8 +253,9 @@ def main(parser=None):
         mainparser = argparse.ArgumentParser()
         mainparser.add_argument('--tenant-id', default=None, help='azure tenant id, if None, use default.  Scanner assumes different runs/project dirs for distinct tenants')
         mainparser.add_argument('--subscription-id', default=None, help='azure subscription id, if None, use default, if "all" use all subscriptions with default tenant')
-        mainparser.add_argument('--use-api-for-auth', required=True, help='path to data on disk')
+        mainparser.add_argument('--use-api-for-auth', required=False, help='path to data on disk')
         mainparser.add_argument('--scans-dir', default='/engagements/cis_test/scans', help='base dir of where to place or load files')
+        mainparser.add_argument('--auth-location', default="", help='path file to login as service principal')
         mainparser.add_argument('--example-scan', action='store_true', help='allow running without credentials on example_scan data')
 
         parser = mainparser.parse_args()
@@ -266,7 +273,7 @@ def main(parser=None):
     app.config['SCANS_DATA_DIR'] = os.path.join(scans_dir, active_subscription_dir)
     app.config['ACCOUNTS'] = utils.get_accounts(scans_dir)
     #app.config['STATS'] = get_stats()
-    app.run(debug=True, host='0.0.0.0', use_reloader=False)
+    app.run(debug=True, host='0.0.0.0', use_reloader=True)
 
 
 if __name__ == "__main__":

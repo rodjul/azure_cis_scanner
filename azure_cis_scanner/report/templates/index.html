@@ -13,24 +13,29 @@
   <h3>{{msg|default('a tool from Praetorian')}}</h3>
   </center>
 
-<form action="{{ url_for('_subscription_dir')}}" method="post" class="form-inline"> 
-<div class="form-group">
-<label for="selected_active_subscription_dir">Selected Subscription Dir:</label>
-<select class="form-control" name="selected_active_subscription_dir">
-    {% for subscription_dir in subscription_dirs %}
-    <option value="{{ selected_active_subscription_dir }}">{{ subscription_dir[0] }}</option>"
-    {% endfor %}
- </select>
-</div>
+<!-- <form action="{{ url_for('_subscription_dir')}}" method="post" class="form-inline"> 
+    <div class="form-group">
+        <label for="selected_active_subscription_dir">Selected Subscription Dir:</label>
+        <select class="form-control" name="selected_active_subscription_dir"  onChange="this.form.submit()">
+            {% for subscription_dir in subscription_dirs %}
+            <option value="{{ subscription_dir }}">{{ subscription_dir }}</option>"
+            {% endfor %}
+        </select>
+    </div>
+</form> -->
 
-<select name= account method="GET" action="/">
+<select name= account method="GET" action="/" onChange="handleChangeSelect(this)">
     {% for subscription_dir in subscription_dirs %}
-    <option value="{{ selected_active_subscription_dir }}"{% if subscription_dir[0] == state.selected %} selected{% endif %}>{{ subscription_dir[1] }}</option>"
+    <option value="{{ subscription_dir }}"{% if subscription_dir == state.selected %} selected{% endif %}>{{ subscription_dir }}</option>"
     {% endfor %}
 </select>
     selected {{ state }}    
     current {{ active_subscription_dir }}
 <script charset="utf-8" type="text/javascript">
+    function handleChangeSelect(e) {
+        // console.log(e.value);
+        window.location = "/folder/"+e.value;
+    }
     // this is called a javascript closure. it also wont run the code until the page is finished loading
     // and it protects the scope of your variables from other code you may later add to the page
     $(function() {

@@ -21,12 +21,13 @@ activity_logs_path = os.path.join(config['raw_data_dir'], 'activity_logs.json')
 storage_accounts_path = os.path.join(config['raw_data_dir'], 'storage_accounts.json')
 resource_groups_path = os.path.join(config['raw_data_dir'], 'resource_groups.json')
 storage_accounts_filtered_path = os.path.join(config['filtered_data_dir'], 'storage_accounts_filtered.json')
+subscription_id=config['subscription_id']
 
 def get_storage_accounts(storage_accounts_path):
     """
     Query Azure api for storage accounts info and save to disk
     """
-    storage_accounts_cmd = "az storage account list"
+    storage_accounts_cmd = "az storage account list --subscription {subscription_id}".format( subscription_id=subscription_id)
     storage_accounts = json.loads(utils.call(storage_accounts_cmd))
         
     with open(storage_accounts_path, 'w') as f:
@@ -56,8 +57,8 @@ def get_activity_logs(activity_logs_path, resource_groups):
     start_time = get_start_time(activity_logs_starttime_timedelta)
     for resource_group in resource_groups:
         resource_group = resource_group['name']
-        activity_log_cmd = "az monitor activity-log list --resource-group {resource_group} --start-time {start_time}".format(
-            resource_group=resource_group, start_time=start_time)
+        activity_log_cmd = "az monitor activity-log list --resource-group {resource_group} --start-time {start_time} --subscription {subscription_id}".format(
+            resource_group=resource_group, start_time=start_time, subscription_id=subscription_id)
         activity_log = json.loads(utils.call(activity_log_cmd))
         activity_logs[resource_group] = activity_log
     with open(activity_logs_path, 'w') as f:
@@ -183,13 +184,13 @@ def public_access_level_is_set_to_private_for_blob_containers_3_6(storage_accoun
         account_name = account["name"]
         resource_group = account["resourceGroup"]
         # get a key that works.  likely this will be a specific key not key[0]
-        keys_cmd = "az storage account keys list --account-name {account_name} --resource-group {resource_group}".format(
-            account_name=account_name, resource_group=resource_group)
+        keys_cmd = "az storage account keys list --account-name {account_name} --resource-group {resource_group} --subscription {subscription_id}".format(
+            account_name=account_name, resource_group=resource_group, subscription_id=subscription_id)
         keys = json.loads(utils.call(keys_cmd))
         account_key = keys[0]['value']
         try:
-            container_list_cmd = "az storage container list --account-name {account_name} --account-key {account_key}".format(
-                account_name=account_name, account_key=account_key)
+            container_list_cmd = "az storage container list --account-name {account_name} --account-key {account_key} --subscription {subscription_id}".format(
+                account_name=account_name, account_key=account_key, subscription_id=subscription_id)
             container_list = json.loads(utils.call(container_list_cmd))
             for container in container_list:
                 print(container)

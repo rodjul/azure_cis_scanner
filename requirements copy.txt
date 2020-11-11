@@ -31,5 +31,4 @@ azure-mgmt-sql
 azure-mgmt-storage
 azure-mgmt-subscription
 azure-cli-core
-azure-identity
 azurerm

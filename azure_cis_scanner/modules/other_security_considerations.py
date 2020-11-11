@@ -43,7 +43,7 @@ def get_keyvaults(keyvaults_path):
     return keyvaults
 
 def get_sql_servers(sql_servers_path) :
-    sql_servers = json.loads(utils.call("az sql server list"))
+    sql_servers = json.loads(utils.call("az sql server list --subscription {subscription_id}".format( subscription_id=subscription_id)))
     with open(sql_servers_path, 'w') as f:
         json.dump(sql_servers, f, indent=4, sort_keys=True)
     return sql_servers
@@ -54,7 +54,7 @@ def load_keyvaults(keyvaults_path):
     return keyvaults
 
 def get_locked_resources():
-    lock_list = json.loads(utils.call("az lock list"))
+    lock_list = json.loads(utils.call("az lock list --subscription {subscription_id}".format( subscription_id=subscription_id)))
 
     with open(locked_resources_path, 'w') as f:
         json.dump(lock_list, f, indent=4, sort_keys=True)
@@ -75,7 +75,7 @@ def get_keyvault_keys_and_secrets_metadata(keyvault_keys_and_secrets_metadata_pa
         print('vault_url', vault_url)
         metadata[vault_name] = {}
         try:
-            keys = json.loads(utils.call("az keyvault key list --vault-name {}".format(vault_name)))
+            keys = json.loads(utils.call("az keyvault key list --vault-name {} --subscription {subscription_id}".format(vault_name, subscription_id=subscription_id)))
             metadata[vault_name]['keys'] = keys
             #keys = kv_client.get_keys(vault_url)
             #metadata[vault_name]['keys'] = get_list_from_paged_results(keys)
@@ -89,7 +89,7 @@ def get_keyvault_keys_and_secrets_metadata(keyvault_keys_and_secrets_metadata_pa
                 raise(Exception("Unexpected KeyVaultErrorException response for vault {}".format(vault_url)))
 
         try:
-            secrets = json.loads(utils.call("az keyvault secret list --vault-name {}".format(vault_name)))
+            secrets = json.loads(utils.call("az keyvault secret list --vault-name {} --subscription {subscription_id}".format(vault_name, subscription_id=subscription_id)))
             metadata[vault_name]['secrets'] = secrets
             #secrets = kv_client.get_secrets(vault_url)    
             #metadata[vault_name]['secrets'] = get_list_from_paged_results(secrets)

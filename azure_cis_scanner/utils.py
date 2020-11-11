@@ -14,11 +14,12 @@ import yaml
 from azure.common.client_factory import get_client_from_cli_profile, get_client_from_auth_file
 from azure.mgmt.compute import ComputeManagementClient
 from azure.mgmt.sql import SqlManagementClient
-from azure.mgmt.monitor import MonitorManagementClient
+from azure.mgmt.monitor import MonitorClient
 from azure.mgmt.network import NetworkManagementClient
 from azure.mgmt.monitor.models import RuleMetricDataSource
 from azure.mgmt.resource import ResourceManagementClient, SubscriptionClient
 from azure.common.credentials import ServicePrincipalCredentials
+from azure.identity import ClientSecretCredential
 
 from azure_cis_scanner.credentials import get_azure_cli_credentials
 from json.decoder import JSONDecodeError
@@ -219,12 +220,23 @@ tenant={}
     return ini_content
 
 
-def get_resource_groups(client, subscription_id, resource_groups_path):
+def get_resource_groups_old(client, subscription_id, resource_groups_path):
     groups = []
     rgs = client.resource_groups.list()
     groups.extend(rgs.advance_page())
     while rgs.next_link:
         groups.extend(rgs.advance_page)
+    resource_groups = [x.as_dict() for x in groups]
+
+    with open(resource_groups_path, 'w') as f:
+        json.dump(resource_groups, f, indent=4, sort_keys=True)
+    return resource_groups
+
+def get_resource_groups(resource_client, subscription_id, resource_groups_path):
+    groups = []
+    rgs = resource_client.resource_groups.list()
+    for item in rgs:
+        groups.append(item)
     resource_groups = [x.as_dict() for x in groups]
 
     with open(resource_groups_path, 'w') as f:
@@ -248,10 +260,13 @@ def get_accounts(scan_path=None):
         accounts_path = os.path.join(scan_path, 'accounts.json')
         if os.path.exists(accounts_path):
             with open(accounts_path, 'r') as f:
-                return json.load(f)
-
-    accounts = call("az account list")
-    return json.loads(accounts)
+                accounts = json.load(f)
+            return accounts
+        else:
+            accounts = call("az account list")
+            with open(accounts_path, 'w') as f:
+                json.dump(accounts, f)
+            return json.loads(accounts)
 
 def set_scans_dir(scans_dir):
     """
@@ -288,10 +303,12 @@ def set_data_paths(subscription_dirname, base_dir='.'):
     scan_data_dir = os.path.join(base_dir, subscription_dirname, day)
     print("scan_data_dir", scan_data_dir)
     raw_data_dir = scan_data_dir + '/raw'
+    raw_data_dir = os.path.abspath(raw_data_dir)
     print("raw_data_dir", raw_data_dir)
     if not os.path.exists(raw_data_dir):
         os.makedirs(raw_data_dir)
     filtered_data_dir = scan_data_dir + '/filtered'
+    filtered_data_dir = os.path.abspath(filtered_data_dir)
     print("filtered_data_dir", filtered_data_dir)
     if not os.path.exists(filtered_data_dir):
         os.makedirs(filtered_data_dir)
@@ -308,13 +325,15 @@ def call(command, retrieving_access_token=False, stderr=None):
             command[0] = command[0] + '.cmd'    # https://github.com/kennethreitz/legit/issues/148
     try :
         print('running: ', command)
-        result = subprocess.check_output(command, shell=False, stderr=subprocess.STDOUT).decode('utf-8')
+        #Getting error: 'utf-8' codec can't decode byte 0xe7 in position
+        result = subprocess.check_output(command, shell=False, stderr=stderr).decode('ISO-8859-1')
         #print("result", result)
         return result
     # allow calling code to raise AzScannerException and continue
-    except Exception as e:
+    except AzScannerException as e:
         print("An exception occurred while processing command " + str(command) )
-        print("call e.output", e.output)
+        print(e)
+        print(traceback.format_exc())
         raise(e)
 
 
@@ -342,7 +361,16 @@ def get_subscription_id(account) :
 
 
 def get_subscription_dirname(subscription_id, subscription_name):
-    return subscription_name.split(' ')[0] + '-' + subscription_id.split('-')[0]
+    # return subscription_name.split(' ')[0] + '-' + subscription_id.split('-')[0]
+    return subscription_name.replace(' ',"_").replace("|","_") + '-' + subscription_id.split('-')[0]
+
+def list_scans_folders_reports(path):
+    path = os.path.abspath(path)
+    if os.path.exists(path):
+        contents = os.listdir(path)
+        folders = [i for i in contents if os.path.isdir(os.path.abspath(path+"/"+i))]
+        return folders
+    return []
 
 
 def get_access_token():
@@ -397,6 +425,49 @@ def set_credentials_tuples(parser):
                 raise ValueError("Unable to set or find subscription {}".format(subscription_id))
         else:
             raise ValueError("supplied subscription id '{}' is invalid".format(parser.subscription_id))
+
+    elif parser.auth_location:
+        if os.path.exists(parser.auth_location) and os.path.isfile(parser.auth_location):
+            with open(parser.auth_location, "r") as f:
+                #BUG: if it was generated from azure cli windows, it will save in another encoding (not uf8)
+                data = f.read()
+
+            if not data:
+                raise ValueError("File \"{}\" is empty".format(parser.auth_location))
+            
+            content = json.loads(data)
+            app_id = content['appId']
+            password = content['password']
+            tenant = content['tenant']
+
+            results = []
+            subscriptions = json.loads(call("az login --service-principal -u {} --password {} --tenant {}".format(app_id, password, tenant)))
+            # print("subscriptions: ",subscriptions)
+            for subscription in subscriptions:
+                tenant_id = subscription['tenantId']
+                subscription_id = subscription['id']
+                subscription_name = subscription['name']
+                service_principle_name = subscription['name'] + '-' + subscription_id
+
+                servicePrincipalId = subscription['user']['name']
+                servicePrincipalTenant = tenant_id 
+                secret = password
+                print(servicePrincipalId, servicePrincipalTenant)
+                
+                # sp_credentials = ServicePrincipalCredentials(
+                sp_credentials = ClientSecretCredential(
+                    client_id=servicePrincipalId,
+                    client_secret=secret,
+                    tenant_id=servicePrincipalTenant
+                )
+
+                results.append((tenant_id, subscription_id, subscription_name, (sp_credentials, subscription_id)))
+            
+            credentials_tuples = results
+
+
+        else:
+            raise ValueError("File \"{}\" was not found, check path.".format(parser.auth_location))
     else:
         try:
             if parser.tenant_id:

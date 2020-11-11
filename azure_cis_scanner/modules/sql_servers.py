@@ -23,7 +23,7 @@ def get_data():
     get_sql_server_policies(sql_server_policies_path, sql_servers)
 
 def get_sql_servers(sql_servers_path) :
-    sql_servers = json.loads(utils.call("az sql server list"))
+    sql_servers = json.loads(utils.call("az sql server list --subscription {subscription_id}".format( subscription_id=subscription_id)))
     with open(sql_servers_path, 'w') as f:
         json.dump(sql_servers, f, indent=4, sort_keys=True)
     return sql_servers
@@ -33,7 +33,7 @@ def get_sql_databases(sql_databases_path, sql_servers) :
     for sql_server in sql_servers:
         server_name = sql_server['name']
         resource_group = sql_server['resourceGroup']
-        dbs = json.loads(utils.call("az sql db list --resource-group {} --server {}".format(resource_group, server_name)))
+        dbs = json.loads(utils.call("az sql db list --resource-group {} --server {}  --subscription {subscription_id}".format(resource_group, server_name,subscription_id=subscription_id)))
         sql_dbs.extend(dbs)
     with open(sql_databases_path, 'w') as f:
         json.dump(sql_dbs, f, indent=4, sort_keys=True)
@@ -78,7 +78,7 @@ def get_sql_server_threat_detection_policies(subscription_id, resource_group, se
     return sql_server_threat_detection_policy
 
 def get_sql_server_active_directory_admin_configuration(subscription_id, resource_group, server_name):
-    active_directory_admin_configuration = utils.call("az sql server ad-admin list --resource-group " + resource_group + " --server " + server_name)
+    active_directory_admin_configuration = utils.call("az sql server ad-admin list --resource-group " + resource_group + " --server " + server_name + " --subscription "+subscription_id)
     active_directory_admin_configuration = utils.jsonify(active_directory_admin_configuration)
     return active_directory_admin_configuration
 

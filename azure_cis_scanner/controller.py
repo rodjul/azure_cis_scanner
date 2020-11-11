@@ -105,6 +105,7 @@ def main():
     mainparser.add_argument('--refresh-sp-credentials', action='store_true', help='refresh service principal creds needed for keyvault')
     mainparser.add_argument('--loglevel', default='info', help='loglevel in ["debug", "info", "warning", "error"]')
     mainparser.add_argument('--example-scan', action='store_true', help='allow running without credentials on example_scan data')
+    mainparser.add_argument('--auth-location', default="", help='path file to login as service principal')
     parser = mainparser.parse_args()
 
     loglevel = parser.loglevel
@@ -130,14 +131,14 @@ def main():
 
     stages = parser.stages.split(',')
 
-
+    
     for tenant_id, subscription_id, subscription_name, credentials in credentials_tuples:
 
         sp_credentials = None
 
         if parser.example_scan:
             stages = ['report']
-        else:
+        elif not parser.auth_location:
             try:
                 sp_credentials = utils.get_service_principal_credentials(subscription_id, auth_type='sdk', refresh_sp_credentials=parser.refresh_sp_credentials)
                 print("sp_credentials", sp_credentials, type(sp_credentials))
@@ -169,10 +170,13 @@ def main():
             subscription_id=subscription_id
             )
 
+        if parser.auth_location:
+            config['sp_credentials'] = credentials
+
         ### Get some data common to most modules
         if not parser.example_scan:
             resource_groups_path = os.path.join(raw_data_dir, "resource_groups.json")
-            rm_client = ResourceManagementClient(credentials, subscription_id)
+            rm_client = ResourceManagementClient(credentials[0], subscription_id)
             resource_groups = get_resource_groups(rm_client, subscription_id, resource_groups_path)
 
         if 'data' in stages:
@@ -180,9 +184,9 @@ def main():
         if 'test' in stages:
             print('test', config)
             _test_controls(config)
-        if 'report' in stages:
-            from azure_cis_scanner.report import app
-            app.main(parser=parser)
+    # if 'report' in stages:
+    #     from azure_cis_scanner.report import app
+    #     app.main(parser=parser)
 
 def az_login():
     from azure.common.client_factory import get_client_from_cli_profile

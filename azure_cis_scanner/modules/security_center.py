@@ -24,7 +24,7 @@ def get_security_center(security_center_path):
     url = "https://management.azure.com/subscriptions/{subscription_id}/providers/microsoft.Security/policies?api-version=2015-06-01-preview".format(subscription_id=subscription_id)
 
     security_center = json.loads(utils.make_request(url, headers=headers))
-    print("get_security_center {}".format(security_center))
+    # print("get_security_center {}".format(security_center))
     security_center = security_center.get('value', [])
         
     with open(security_center_path, 'w') as f:
