@@ -141,11 +141,17 @@ def get_clients_from_cli(subscription_id):
 
     return subscription_client, compute_client, rm_client, sql_client
 
-def get_list_from_paged_results(paged):
+def get_list_from_paged_results_old(paged):
     results = []
     results.extend(paged.advance_page())
     while paged.next_link:
         results.extend(paged.advance_page)
+    return [x.as_dict() for x in results]
+
+def get_list_from_paged_results(paged):
+    results = []
+    for item in paged:
+        results.append(item)
     return [x.as_dict() for x in results]
 
 def get_clients_from_service_principals(tenant_id=None, generate_credentials_ini=False, generate_auth_file=False, overwrite_ini=False):
@@ -452,7 +458,7 @@ def set_credentials_tuples(parser):
                 servicePrincipalId = subscription['user']['name']
                 servicePrincipalTenant = tenant_id 
                 secret = password
-                print(servicePrincipalId, servicePrincipalTenant)
+                # print(servicePrincipalId, servicePrincipalTenant)
                 
                 # sp_credentials = ServicePrincipalCredentials(
                 sp_credentials = ClientSecretCredential(

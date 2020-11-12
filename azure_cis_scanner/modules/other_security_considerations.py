@@ -36,7 +36,7 @@ def get_keyvaults(keyvaults_path):
     @keyvaults_path: string - path to output json file
     @returns: list of virtual_machines dict
     """
-    kvm_client = KeyVaultManagementClient(credentials, subscription_id)
+    kvm_client = KeyVaultManagementClient(credentials[0], subscription_id)
     keyvaults = get_list_from_paged_results(kvm_client.vaults.list())
     with open(keyvaults_path, 'w') as f:
         json.dump(keyvaults, f, indent=4, sort_keys=True)

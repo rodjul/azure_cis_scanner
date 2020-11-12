@@ -183,24 +183,30 @@ def public_access_level_is_set_to_private_for_blob_containers_3_6(storage_accoun
     for account in storage_accounts:
         account_name = account["name"]
         resource_group = account["resourceGroup"]
-        # get a key that works.  likely this will be a specific key not key[0]
-        keys_cmd = "az storage account keys list --account-name {account_name} --resource-group {resource_group} --subscription {subscription_id}".format(
-            account_name=account_name, resource_group=resource_group, subscription_id=subscription_id)
-        keys = json.loads(utils.call(keys_cmd))
-        account_key = keys[0]['value']
         try:
-            container_list_cmd = "az storage container list --account-name {account_name} --account-key {account_key} --subscription {subscription_id}".format(
-                account_name=account_name, account_key=account_key, subscription_id=subscription_id)
-            container_list = json.loads(utils.call(container_list_cmd))
-            for container in container_list:
-                print(container)
-                items_checked += 1
-                public_access = container["properties"]["publicAccess"]
-                if public_access == True:
-                    items_flagged_list.append((account_name, container))
+            # get a key that works.  likely this will be a specific key not key[0]
+            keys_cmd = "az storage account keys list --account-name {account_name} --resource-group {resource_group} --subscription {subscription_id}".format(
+                account_name=account_name, resource_group=resource_group, subscription_id=subscription_id)
+            keys = json.loads(utils.call(keys_cmd))
+            account_key = keys[0]['value']
+            try:
+                container_list_cmd = "az storage container list --account-name {account_name} --account-key {account_key} --subscription {subscription_id}".format(
+                    account_name=account_name, account_key=account_key, subscription_id=subscription_id)
+                container_list = json.loads(utils.call(container_list_cmd))
+                for container in container_list:
+                    print(container)
+                    items_checked += 1
+                    public_access = container["properties"]["publicAccess"]
+                    if public_access == True:
+                        items_flagged_list.append((account_name, container))
+            except Exception as e:
+                print("ERROR: insufficient permissions to list containers")
+                logger.warning(traceback.format_exc())
+                items_flagged_list = ["Error: Missing permission"]
         except Exception as e:
             print("ERROR: insufficient permissions to list containers")
             logger.warning(traceback.format_exc())
+            items_flagged_list = ["Error: Missing permission"]
     stats = {'items_flagged': len(items_flagged_list), "items_checked": items_checked}
     metadata = {"finding_name": "public_access_level_is_set_to_private_for_blob_containers",
                 "negative_name": "public_access_level_not_private_for_blob_containers",
